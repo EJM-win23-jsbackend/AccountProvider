@@ -1,5 +1,4 @@
 ﻿
-
 namespace Data.Entities;
 
 public class UserAddress
@@ -9,6 +8,5 @@ public class UserAddress
     public string? AddressLine_2 { get; set; }
     public string PostalCode { get; set; } = null!;
     public string City { get; set; } = null!;
-
-    public virtual ApplicationUser User { get; set; } = null!;
+    public virtual ApplicationUser? User { get; set; }
 }

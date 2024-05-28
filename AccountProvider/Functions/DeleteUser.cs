@@ -21,6 +21,8 @@ namespace AccountProvider.Functions
         [Function("Function")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "delete", Route = "deleteuser/{userId}")] HttpRequest req, string userId)
         {
+            _logger.LogInformation($"Delete request for user: {userId}");
+
             using var context = _dbContextFactory.CreateDbContext();
             var user = await context.Users.FindAsync(userId);
 
@@ -29,7 +31,7 @@ namespace AccountProvider.Functions
                 return new NotFoundObjectResult($"User with id: {userId} was not found");
             }
 
-            context.User.Remove(user);
+            context.Users.Remove(user);
             await context.SaveChangesAsync();
 
             return new OkObjectResult($"User with id: {userId} have been deleted");

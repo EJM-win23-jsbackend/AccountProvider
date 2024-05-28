@@ -1,13 +1,11 @@
 using Data.Contexts;
 using Data.Models;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using System.Reflection.Metadata.Ecma335;
 
 namespace AccountProvider.Functions
 {
@@ -22,39 +20,45 @@ namespace AccountProvider.Functions
         }
 
         [Function("UpdateUser")]
-        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "put", Route = "user/{userId}")] HttpRequest req, string userId)
+        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "put", Route = "user/{userId}")] HttpRequestData req, string userId)
         {
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var data = JsonConvert.DeserializeObject<UserAccountModel>(requestBody);
+            _logger.LogInformation($"recieved data from user: {requestBody}");
+
 
             if (data == null)
             {
-                return new BadRequestObjectResult("Invalid");
+                var badRequestResponse = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
+                await badRequestResponse.WriteStringAsync("invalid");
+                return badRequestResponse;
             }
 
             _logger.LogInformation($"request for user with id: {userId}");
-            _logger.LogInformation($"recieved data from user: {requestBody}");
-
+            
             using var context = _dbContextFactory.CreateDbContext();
             var user = await context.Users.FindAsync(userId);
 
-            if (user == null)
+            if(user == null)
             {
-                return new NotFoundResult();
+                var notFoundResponse = req.CreateResponse(System.Net.HttpStatusCode.NotFound);
+                await notFoundResponse.WriteStringAsync("user was not found");
+                return notFoundResponse;
             }
-            else
-            {
-                user.UserName = data.UserName;
-                user.FirstName = data.FirstName;
-                user.LastName = data.LastName;
-                user.Email = data.Email;
-                user.PhoneNumber = data.PhoneNumber;
-                
-                context.Entry(user).State = EntityState.Modified;
-                await context.SaveChangesAsync();
 
-                return new OkObjectResult("Your profile information was updated!");
-            } 
+            if(data.FirstName != null) user.FirstName = data.FirstName;
+            if(data.LastName != null) user.LastName = data.LastName;
+            if(data.Email != null) user.Email = data.Email;
+            if(data.PhoneNumber != null) user.PhoneNumber = data.PhoneNumber;
+            if(data.UserName != null) user.UserName = data.UserName;
+
+
+            await context.SaveChangesAsync();
+                
+            var response = req.CreateResponse(System.Net.HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(data);
+            return response;
+            
         }
     }
 }
