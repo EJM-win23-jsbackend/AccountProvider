@@ -20,16 +20,18 @@ namespace AccountProvider.Functions
         [Function("GetUsers")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequest req)
         {
-           
-            using var context = _dbContextFactory.CreateDbContext();
-            var users = await context.Users.ToListAsync();  
-
-            foreach(var user in users)
+            try
             {
-                await context.Entry(user).Reference(x => x.UserAddress).LoadAsync();
+                using var context = _dbContextFactory.CreateDbContext();
+                var users = await context.Users.ToListAsync();
+
+                return new OkObjectResult(users);
             }
-            
-            return new OkObjectResult(users);
+            catch(Exception ex)
+            {
+                return new NotFoundObjectResult("user not found" + ex.Message);
+            }
+           
         }
     }
 }
